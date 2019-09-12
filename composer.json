@@ -1,0 +1,7 @@
+{
+  "name":"metabolism/mailchimp-connector",
+  "version": "1.0.0",
+  "type": "wordpress-plugin",
+  "description": "Link a custom post type to a Mailchimp campaign using Mailchimp API",
+  "license": "GPL-3.0-or-later"
+}
