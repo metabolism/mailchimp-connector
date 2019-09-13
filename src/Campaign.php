@@ -170,7 +170,7 @@ class Campaign
 
 	public function savePost( $ID, $post ) {
 
-		if( self::$preventRecursion || $post->post_status == 'auto-draft' )
+		if( self::$preventRecursion || $post->post_status == 'auto-draft' || $post->post_type != $this->options['post_type'] )
 			return;
 
 		$this->id = $ID;
