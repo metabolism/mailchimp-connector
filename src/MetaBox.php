@@ -145,7 +145,7 @@ class MetaBox
 							if( response.succes && response.segments.length ){
 
 								var html = '<label for="mc_segment_id"><?=__('Segment','mc'); ?></label><select name="mc_segment_id" id="mc_segment_id">';
-								html += '<option value="0"><?=__('All','mc')?></option>';
+								html += '<option value="0"><?=__('All')?></option>';
 								for(var i=0; i<response.segments.length; i++){
 									var segment = response.segments[i];
 									html += '<option value='+segment.id+' '+(mc_segment_id==segment.id?'selected':'')+'>'+segment.name+' ( '+segment.member_count+' '+(segment.member_count>1?members:member)+' )</option>';
@@ -175,14 +175,16 @@ class MetaBox
 			__( 'Mailchimp Connector' ).($campaing_web_id?' <a id="mailchimp_link" target="_blank" href="https://us4.admin.mailchimp.com/campaigns/edit?id='.$campaing_web_id.'">'.__('View on Mailchimp', 'mc').'</a>':''),
 			function(){
 
+				$member = __('member', 'mc');
+				$members = __('members', 'mc');
+
+				if( !isset($this->options['list_id']) || empty($this->options['list_id'])) {
+
 				wp_nonce_field( basename( __FILE__ ), 'mc_nonce' );
 
 				$mailchimp_data = $this->Mailchimp->get('/lists');
 				$lists = $mailchimp_data['lists']??[];
 				$dropdown_value = get_post_meta( get_the_ID(), 'mc_list_id', true );
-
-				$member = __('member', 'mc');
-				$members = __('members', 'mc');
 
 				echo '<label for="mc_list_id">'.__('List','mc').'*</label><select required name="mc_list_id" id="mc_list_id">';
 				echo '<option></option>';
@@ -197,6 +199,29 @@ class MetaBox
 				}
 				echo '</select>';
 				echo '<div id="mc_segments"></div>';
+				}
+				else{
+
+					$mailchimp_data = $this->Mailchimp->get('/lists/'.$this->options['list_id'].'/segments');
+
+					$segments = $mailchimp_data['segments']??[];
+					$dropdown_value = get_post_meta( get_the_ID(), 'mc_segment_id', true );
+
+					echo '<input name="mc_list_id" type="hidden" value="'.$this->options['list_id'].'">';
+					echo '<label for="mc_segment_id">'.__('Segment','mc').'</label><select name="mc_segment_id" id="mc_segment_id">';
+					echo '<option value="0">'.__('All').'</option>';
+
+					foreach ($segments as $segment){
+
+						$member_count = $segment['member_count'];
+						$id = $segment['id'];
+						$name = $segment['name'];
+
+						echo '<option value="'.$id.'" '.($dropdown_value == $id?'selected':'').'>'.$name.' ( '.$member_count.' '.($member_count>1?$members:$member).' )</option>';
+					}
+					echo '</select>';
+
+				}
 
 				echo '<label for="mc_list_subject">'.__('Subject', 'mc').'</label>';
 				echo '<input type="text" name="mc_list_subject" maxlength="150" value="'.get_post_meta( get_the_ID(), 'mc_list_subject', true ).'" placeholder="Title will be used if empty"/>';

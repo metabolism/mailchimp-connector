@@ -2,12 +2,15 @@
 
 namespace Metabolism\MailchimpConnector;
 
+use DrewM\MailChimp\MailChimp;
+
 class Settings
 {
 	/**
 	 * Holds the values to be used in the fields callbacks
 	 */
 	private $options;
+	private $Mailchimp;
 
 	/**
 	 * Start up
@@ -43,6 +46,7 @@ class Settings
 	{
 		// Set class property
 		$this->options = get_option( 'mailchimp_connector' );
+		$this->Mailchimp = new MailChimp($this->options['api_key']);
 		?>
 		<div class="wrap">
 			<h1>Mailchimp Connector</h1>
@@ -101,7 +105,36 @@ class Settings
 				foreach ($post_types as $id=>$post_type){
 
 					if( substr($id, 0, 3) !== 'acf' )
-					echo '<option value="'.$id.'" '.(isset($this->options['post_type']) && $this->options['post_type'] == $id ? 'selected':'').'>'.$post_type->label.'</option>';
+						echo '<option value="'.$id.'" '.(isset($this->options['post_type']) && $this->options['post_type'] == $id ? 'selected':'').'>'.$post_type->label.'</option>';
+				}
+				echo '</select>';
+			},
+			'mailchimp_connector-admin', // Page
+			'mailchimp_settings' // Section
+		);
+
+		add_settings_field(
+			'mailchimp_connector_list_id', // ID
+			__('List id','mc'), // Title
+			function()
+			{
+				$mailchimp_data = $this->Mailchimp->get('/lists');
+				$lists = $mailchimp_data['lists']??[];
+				$dropdown_value = $this->options['list_id']??'';
+
+				$member = __('member', 'mc');
+				$members = __('members', 'mc');
+
+				echo '<select name="mailchimp_connector[list_id]" style="width:300px">';
+				echo '<option></option>';
+
+				foreach ($lists as $list){
+
+					$member_count = $list['stats']['member_count'];
+					$id = $list['id'];
+					$name = $list['name'];
+
+					echo '<option value="'.$id.'" '.($dropdown_value == $id?'selected':'').'>'.$name.' ( '.$member_count.' '.($member_count>1?$members:$member).' )</option>';
 				}
 				echo '</select>';
 			},
@@ -153,6 +186,9 @@ class Settings
 
 		if( isset( $input['from'] ) )
 			$new_input['from'] = sanitize_text_field( $input['from'] );
+
+		if( isset( $input['list_id'] ) )
+			$new_input['list_id'] = sanitize_text_field( $input['list_id'] );
 
 		return $new_input;
 	}
