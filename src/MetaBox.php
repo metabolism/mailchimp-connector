@@ -63,6 +63,21 @@ class MetaBox
 
 		// js script
 		add_action( 'admin_footer', [$this, 'adminFooter'] );
+
+		add_action( 'post_submitbox_misc_actions', [$this, 'miscActions'] );
+	}
+
+
+	public function miscActions( $post ) {
+
+		$campaing_web_id = get_post_meta( $post->ID, 'mc_campaign_web_id', true );
+		$size = get_post_meta($post->ID, 'mc_size', true);
+		echo '<style type="text/css">';
+		echo '#post-body .misc-pub-revisions.size:before{ content:"\f184"}';
+		echo '#post-body .misc-pub-revisions.mailchimp:before{ content:"\f465"}';
+		echo '</style>';
+		echo '<div class="misc-pub-section size misc-pub-revisions">'.__('Size').' : <b>'.size_format($size?$size:0).'</b></div>';
+		echo '<div class="misc-pub-section mailchimp misc-pub-revisions">'.__('Mailchimp').' : <b>'.($campaing_web_id?__('Connected'):__('Offline')).'</b></div>';
 	}
 
 	public function ajaxGetSegments() {
@@ -107,8 +122,14 @@ class MetaBox
 				}
 				else{
 
+					var clicked = false;
 					$('#publish').click(function(){
-						return confirm("Are you SURE you send this newsletter?");
+						if( clicked || confirm("Do you really want to send this newsletter? Else use the save draft option.") ){
+							clicked = true;
+							return true
+						}
+						else
+							return  false;
 					});
 
 					$('#mc_list_id').change(function(){

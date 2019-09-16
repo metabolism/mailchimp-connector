@@ -63,7 +63,6 @@ class Campaign
 			add_action( 'before_delete_post', [$this, 'deletePost'], 10 );
 			add_action( 'admin_notices', [$this, 'adminNotices'] );
 
-			add_action( 'post_submitbox_misc_actions', [$this, 'miscActions'] );
 		}
 	}
 
@@ -88,19 +87,6 @@ class Campaign
 			$posts[0]->post_status = 'publish';
 
 		return $posts;
-	}
-
-
-	public function miscActions( $post ) {
-
-		$campaing_web_id = get_post_meta( $post->ID, 'mc_campaign_web_id', true );
-
-		echo '<style type="text/css">';
-		echo '#post-body .misc-pub-revisions.size:before{ content:"\f184"}';
-		echo '#post-body .misc-pub-revisions.mailchimp:before{ content:"\f465"}';
-		echo '</style>';
-		echo '<div class="misc-pub-section size misc-pub-revisions">'.__('Size').' : <b>'.size_format(get_post_meta($post->ID, 'mc_size', true)).'</b></div>';
-		echo '<div class="misc-pub-section mailchimp misc-pub-revisions">'.__('Mailchimp').' : <b>'.($campaing_web_id?__('Connected'):__('Offline')).'</b></div>';
 	}
 
 
@@ -172,8 +158,16 @@ class Campaign
 			'plain_text'=> $this->get('plain_text', '')
 		]);
 
-		if( !isset($content['html']) )
+
+		if( !isset($content['html']) ){
+
+			if($content['status'] == 404 ){
+				delete_post_meta($this->id, 'mc_campaign_id');
+				delete_post_meta($this->id, 'mc_campaign_web_id');
+			}
+
 			return $this->setError($content);
+		}
 
 		return true;
 	}
@@ -214,6 +208,7 @@ class Campaign
 		if( !isset($campaign['id']) )
 			return $this->setError($campaign);
 
+		update_post_meta($this->id, 'mc_campaign_id', $campaign['id']);
 		update_post_meta($this->id, 'mc_campaign_web_id', $campaign['web_id']);
 
 		return $campaign['id'];
@@ -269,7 +264,7 @@ class Campaign
 
 	public function savePost( $ID, $post ) {
 
-		if( self::$preventRecursion || !in_array($post->post_status, ['draft', 'pending', 'future']) || $post->post_type != $this->options['post_type'] )
+		if( self::$preventRecursion || !in_array($post->post_status, ['draft', 'pending', 'future', 'publish']) || $post->post_type != $this->options['post_type'] )
 			return;
 
 		$this->id = $ID;
@@ -279,26 +274,22 @@ class Campaign
 		$this->html = $this->getContent($ID);
 		update_post_meta($this->id, 'mc_size', mb_strlen($this->html));
 
-		$campaign_id = $this->createCampaign();
+		if( $campaign_id = $this->createCampaign() ){
 
-		if( $campaign_id ){
-
-			update_post_meta($ID, 'mc_campaign_id', $campaign_id);
+			$status = false;
 
 			if( $this->addContent($campaign_id) ){
-
-				$status = false;
 
 				if( $post->post_status == 'future' )
 					$status = $this->scheduleCampaign($campaign_id);
 				elseif( $post->post_status == 'publish' )
 					$status = $this->sendCampaign($campaign_id);
+			}
 
-				if( !$status && in_array($post->post_status, ['future', 'publish']) ){
+			if( !$status && in_array($post->post_status, ['future', 'publish']) ){
 
-					self::$preventRecursion = true;
-					wp_update_post(['ID'=>$ID, 'post_status'=>'draft']);
-				}
+				self::$preventRecursion = true;
+				wp_update_post(['ID'=>$ID, 'post_status'=>'draft']);
 			}
 		}
 	}
