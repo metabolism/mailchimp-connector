@@ -38,9 +38,48 @@ class Campaign
 			wp_die($e->getMessage());
 		}
 
+		add_action( 'manage_'.$this->options['post_type'].'_posts_custom_column', [$this, 'manageColumns'], 10, 2 );
+		add_filter( 'manage_edit-'.$this->options['post_type'].'_columns', [$this, 'editColumns'] ) ;
+
 		add_action( 'save_post', [$this, 'savePost'], 10, 2 );
 		add_action( 'before_delete_post', [$this, 'deletePost'], 10 );
 		add_action( 'admin_notices', [$this, 'adminNotices'] );
+
+		add_action( 'post_submitbox_misc_actions', [$this, 'miscActions'] );
+	}
+
+
+	function miscActions( $post ) {
+
+		$campaing_web_id = get_post_meta( $post->ID, 'mc_campaign_web_id', true );
+
+		echo '<style type="text/css">';
+		echo '#post-body .misc-pub-revisions.size:before{ content:"\f184"}';
+		echo '#post-body .misc-pub-revisions.mailchimp:before{ content:"\f465"}';
+		echo '</style>';
+		echo '<div class="misc-pub-section size misc-pub-revisions">'.__('Size').' : <b>'.size_format(get_post_meta($post->ID, 'mc_size', true)).'</b></div>';
+		echo '<div class="misc-pub-section mailchimp misc-pub-revisions">'.__('Mailchimp').' : <b>'.($campaing_web_id?__('Connected'):__('Offline')).'</b></div>';
+	}
+
+
+	function editColumns( $columns ) {
+
+		$date = $columns['date'];
+		unset($columns['date']);
+
+		$columns['size'] = __( 'Size' );
+		$columns['date'] = $date;
+
+		return $columns;
+	}
+
+
+	public function manageColumns($column, $post_id) {
+		switch( $column ) {
+			case 'size' :
+				echo size_format(get_post_meta($post_id, 'mc_size', true));
+				break;
+		}
 	}
 
 
@@ -59,19 +98,25 @@ class Campaign
 
 
 	public function get($key, $default=false) {
-		return isset($this->data[$key]) ? $this->data[$key][0] : $default;
+		return isset($this->data[$key]) &&!empty($this->data[$key]) ? $this->data[$key][0] : $default;
 	}
 
 
-	public function addContent($campaign_id) {
+	private function getContent($post_id) {
 
-		$post_url = get_preview_post_link( $this->id );
+		$post_url = get_preview_post_link( $post_id );
 		$home_url = get_home_url(null);
 
 		if( strpos($post_url, $home_url) === false )
 			$post_url = $home_url.$post_url;
 
-		$html = file_get_contents($post_url);
+		return file_get_contents($post_url);
+	}
+
+
+	public function addContent($campaign_id) {
+
+		$html = $this->getContent($this->id);
 
 		if( empty($html) )
 			return false;
@@ -80,6 +125,8 @@ class Campaign
 			'html'=> $html,
 			'plain_text'=> $this->get('plain_text', '')
 		]);
+
+		update_post_meta($this->id, 'mc_size', mb_strlen($html));
 
 		if( !isset($content['html']) )
 			return $this->setError($content);
@@ -94,7 +141,10 @@ class Campaign
 		if( $campaign_id )
 			return $campaign_id;
 
-		$campaign = $this->Mailchimp->post('/campaigns', [
+		if( !$this->get('mc_list_id') || !$this->get('mc_list_subject') )
+			return false;
+
+		$settings = [
 			'recipients' =>[
 				'list_id'=>$this->get('mc_list_id'),
 				'segment_opts'=>[
@@ -110,7 +160,12 @@ class Campaign
 				'from_name' => $this->options['from'],
 				'inline_css' => true
 			]
-		]);
+		];
+
+		if( $campaign_id )
+			$campaign = $this->Mailchimp->patch('/campaigns/'.$campaign_id, $settings);
+		else
+			$campaign = $this->Mailchimp->post('/campaigns', $settings);
 
 		if( !isset($campaign['id']) )
 			return $this->setError($campaign);
@@ -170,7 +225,7 @@ class Campaign
 
 	public function savePost( $ID, $post ) {
 
-		if( self::$preventRecursion || $post->post_status == 'auto-draft' || $post->post_type != $this->options['post_type'] )
+		if( self::$preventRecursion || !in_array($post->post_status, ['draft', 'pending', 'future']) || $post->post_type != $this->options['post_type'] )
 			return;
 
 		$this->id = $ID;
@@ -192,7 +247,7 @@ class Campaign
 				elseif( $post->post_status == 'publish' )
 					$status = $this->sendCampaign($campaign_id);
 
-				if( !$status && ($post->post_status == 'future' || $post->post_status == 'publish') ){
+				if( !$status && in_array($post->post_status, ['future', 'publish']) ){
 
 					self::$preventRecursion = true;
 					wp_update_post(['ID'=>$ID, 'post_status'=>'draft']);
