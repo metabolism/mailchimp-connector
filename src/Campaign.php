@@ -9,6 +9,7 @@ class Campaign
 	private $id;
 	private $post;
 	private $data;
+	private $html;
 
 	private $options;
 	private $Mailchimp;
@@ -91,14 +92,18 @@ class Campaign
 			$title = $_SESSION['mc_errors']['title'];
 			$message = $_SESSION['mc_errors']['message'];
 
-			printf( '<div class="%1$s"><p><b>Mailchimp Connector : %2$s</b><br/>%3$s</p></div>', esc_attr( $class ), esc_html( $title ), esc_html( $message ) );
+			printf( '<div class="%1$s">', esc_attr( $class ) );
+			printf( '<p><b>Mailchimp Connector : %1$s</b><br/>%2$s</p>', esc_html( $title ), esc_html( $message ) );
+			if( !empty($_SESSION['mc_errors']['errors'] ))
+				printf( '<pre>%1$s</pre>', print_r($_SESSION['mc_errors']['errors'], true) );
+			printf( '</div>' );
 			unset($_SESSION['mc_errors']);
 		}
 	}
 
 
 	public function get($key, $default=false) {
-		return isset($this->data[$key]) &&!empty($this->data[$key]) ? $this->data[$key][0] : $default;
+		return isset($this->data[$key]) &&!empty($this->data[$key][0]) ? $this->data[$key][0] : $default;
 	}
 
 
@@ -116,7 +121,7 @@ class Campaign
 
 	public function addContent($campaign_id) {
 
-		$html = $this->getContent($this->id);
+		$html = $this->html;
 
 		if( empty($html) )
 			return false;
@@ -125,8 +130,6 @@ class Campaign
 			'html'=> $html,
 			'plain_text'=> $this->get('plain_text', '')
 		]);
-
-		update_post_meta($this->id, 'mc_size', mb_strlen($html));
 
 		if( !isset($content['html']) )
 			return $this->setError($content);
@@ -141,7 +144,7 @@ class Campaign
 		if( $campaign_id )
 			return $campaign_id;
 
-		if( !$this->get('mc_list_id') || !$this->get('mc_list_subject') )
+		if( !$this->get('mc_list_id') )
 			return false;
 
 		$settings = [
@@ -231,6 +234,9 @@ class Campaign
 		$this->id = $ID;
 		$this->post = $post;
 		$this->data = get_post_meta($ID);
+
+		$this->html = $this->getContent($ID);
+		update_post_meta($this->id, 'mc_size', mb_strlen($this->html));
 
 		$campaign_id = $this->createCampaign();
 
