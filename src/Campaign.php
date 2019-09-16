@@ -21,36 +21,77 @@ class Campaign
 	 */
 	public function __construct()
 	{
-		if( !is_admin() )
-			return;
-
-		if ( !session_id() )
-			session_start();
-
 		$this->options = get_option( 'mailchimp_connector' );
 
-		if( !isset($this->options['api_key']) || empty($this->options['api_key']) )
-			return;
+		if( !is_admin() ){
 
-		try{
-			$this->Mailchimp = new MailChimp($this->options['api_key']);
+			add_filter( 'pre_get_posts', function($query){
+
+				if ($query->is_main_query() && $query->is_preview() && $query->is_singular() ){
+
+					if ( !headers_sent() )
+						nocache_headers();
+
+					add_action( 'wp_head', 'wp_no_robots' );
+
+					add_filter( 'get_post_status', [$this, 'getPostStatus'], 10, 2 );
+					add_filter( 'posts_results', [$this, 'postsResults'], 10, 2 );
+				}
+
+				return $query;
+			});
 		}
-		catch (\Exception $e){
-			wp_die($e->getMessage());
+		else{
+
+			if ( !session_id() )
+				session_start();
+
+			if( !isset($this->options['api_key']) || empty($this->options['api_key']) )
+				return;
+
+			try{
+				$this->Mailchimp = new MailChimp($this->options['api_key']);
+			}
+			catch (\Exception $e){
+				wp_die($e->getMessage());
+			}
+
+			add_action( 'manage_'.$this->options['post_type'].'_posts_custom_column', [$this, 'manageColumns'], 10, 2 );
+			add_filter( 'manage_edit-'.$this->options['post_type'].'_columns', [$this, 'editColumns'] ) ;
+
+			add_action( 'save_post', [$this, 'savePost'], 10, 2 );
+			add_action( 'before_delete_post', [$this, 'deletePost'], 10 );
+			add_action( 'admin_notices', [$this, 'adminNotices'] );
+
+			add_action( 'post_submitbox_misc_actions', [$this, 'miscActions'] );
 		}
-
-		add_action( 'manage_'.$this->options['post_type'].'_posts_custom_column', [$this, 'manageColumns'], 10, 2 );
-		add_filter( 'manage_edit-'.$this->options['post_type'].'_columns', [$this, 'editColumns'] ) ;
-
-		add_action( 'save_post', [$this, 'savePost'], 10, 2 );
-		add_action( 'before_delete_post', [$this, 'deletePost'], 10 );
-		add_action( 'admin_notices', [$this, 'adminNotices'] );
-
-		add_action( 'post_submitbox_misc_actions', [$this, 'miscActions'] );
 	}
 
 
-	function miscActions( $post ) {
+	public function getPostStatus( $post_status, $post ) {
+
+		if( $post->post_type == $this->options['post_type'] && in_array($post_status, ['draft', 'future']) )
+			return 'publish';
+
+		return $post_status;
+	}
+
+
+	public function postsResults( $posts ) {
+
+		remove_filter( 'posts_results', [$this, 'postsResults'], 10 );
+
+		if( empty($posts) )
+			return $posts;
+
+		if( $posts[0]->post_type == $this->options['post_type'] && in_array($posts[0]->post_status, ['draft', 'future']) )
+			$posts[0]->post_status = 'publish';
+
+		return $posts;
+	}
+
+
+	public function miscActions( $post ) {
 
 		$campaing_web_id = get_post_meta( $post->ID, 'mc_campaign_web_id', true );
 
@@ -63,7 +104,7 @@ class Campaign
 	}
 
 
-	function editColumns( $columns ) {
+	public function editColumns( $columns ) {
 
 		$date = $columns['date'];
 		unset($columns['date']);
