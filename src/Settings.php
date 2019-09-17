@@ -105,7 +105,7 @@ class Settings
 				foreach ($post_types as $id=>$post_type){
 
 					if( substr($id, 0, 3) !== 'acf' )
-						echo '<option value="'.$id.'" '.(isset($this->options['post_type']) && $this->options['post_type'] == $id ? 'selected':'').'>'.$post_type->label.'</option>';
+					echo '<option value="'.$id.'" '.(isset($this->options['post_type']) && $this->options['post_type'] == $id ? 'selected':'').'>'.$post_type->label.'</option>';
 				}
 				echo '</select>';
 			},
@@ -115,7 +115,7 @@ class Settings
 
 		add_settings_field(
 			'mailchimp_connector_list_id', // ID
-			__('List id','mc'), // Title
+			__('Audience','mc'), // Title
 			function()
 			{
 				$mailchimp_data = $this->Mailchimp->get('/lists');

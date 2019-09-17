@@ -10,6 +10,8 @@ class Campaign
 	private $post;
 	private $data;
 	private $html;
+	private $link;
+	private $plain_text;
 
 	private $options;
 	private $Mailchimp;
@@ -134,28 +136,25 @@ class Campaign
 	}
 
 
-	private function getContent($post_id) {
+	private function getContent() {
 
-		$post_url = get_preview_post_link( $post_id );
-		$home_url = get_home_url(null);
+		$response = wp_remote_get($this->link);
 
-		if( strpos($post_url, $home_url) === false )
-			$post_url = $home_url.$post_url;
+		if ( is_array( $response ) )
+			return $response['body'];
 
-		return file_get_contents($post_url);
+		return false;
 	}
 
 
 	public function addContent($campaign_id) {
 
-		$html = $this->html;
-
-		if( empty($html) )
+		if( empty($this->html) )
 			return false;
 
 		$content = $this->Mailchimp->put('/campaigns/'.$campaign_id.'/content', [
-			'html'=> $html,
-			'plain_text'=> $this->get('plain_text', '')
+			'html'=> $this->html,
+			'plain_text'=> $this->plain_text
 		]);
 
 
@@ -196,7 +195,7 @@ class Campaign
 				'title' => $this->post->post_title,
 				'reply_to' => $this->options['reply'],
 				'from_name' => $this->options['from'],
-				'inline_css' => true
+				'inline_css' => false
 			]
 		];
 
@@ -217,7 +216,11 @@ class Campaign
 
 	public function setError($return) {
 
-		$_SESSION['mc_errors'] = ['title'=>$return['title'], 'message'=>$return['detail'], 'errors'=>isset($return['errors'])?$return['errors']:''];
+		$_SESSION['mc_errors'] = [
+			'title'=>$return['title'],
+			'message'=>$return['detail'],
+			'errors'=>isset($return['errors'])?$return['errors']:''
+		];
 
 		return false;
 	}
@@ -262,6 +265,31 @@ class Campaign
 		return true;
 	}
 
+	public function updateSize() {
+
+		$plain_text = empty($this->plain_text) ? strip_tags($this->html) : $this->plain_text;
+		$size = mb_strlen(rawurlencode( utf8_encode($plain_text.$this->html)));
+		update_post_meta($this->id, 'mc_size', $size);
+
+	}
+
+	public function getLink() {
+
+		$post_url = get_preview_post_link( $this->id );
+		$home_url = get_home_url(null);
+
+		if( strpos($post_url, $home_url) === false )
+			$post_url = $home_url.$post_url;
+
+		return $post_url;
+	}
+
+	public function getPlainText() {
+
+		$link = str_replace('?preview=true', '', $this->link);
+		return str_replace('[link]', $link, $this->get('mc_plain_text', ''));
+	}
+
 	public function savePost( $ID, $post ) {
 
 		if( self::$preventRecursion || !in_array($post->post_status, ['draft', 'pending', 'future', 'publish']) || $post->post_type != $this->options['post_type'] )
@@ -270,9 +298,12 @@ class Campaign
 		$this->id = $ID;
 		$this->post = $post;
 		$this->data = get_post_meta($ID);
+		$this->link = $this->getLink();
 
-		$this->html = $this->getContent($ID);
-		update_post_meta($this->id, 'mc_size', mb_strlen($this->html));
+		$this->html = $this->getContent();
+		$this->plain_text = $this->getPlainText();
+
+		$this->updateSize();
 
 		if( $campaign_id = $this->createCampaign() ){
 
