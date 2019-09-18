@@ -288,7 +288,7 @@ class MetaBox
 				echo '<input type="text" name="mc_list_preview" maxlength="150" value="'.get_post_meta( get_the_ID(), 'mc_list_preview', true ).'"/>';
 
 				echo '<label for="mc_plain_text">'.__('Plain text', 'mc').'<small style="float: right">'.__('Use [link] to insert permalink', 'mc').'</small></label>';
-				echo '<textarea name="mc_plain_text" rows="5">'.get_post_meta( get_the_ID(), 'mc_plain_text', true ).'</textarea>';
+				echo '<textarea name="mc_plain_text" rows="5" required>'.get_post_meta( get_the_ID(), 'mc_plain_text', true ).'</textarea>';
 			},
 			$this->options['post_type']??'post',
 			'normal',
