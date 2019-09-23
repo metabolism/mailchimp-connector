@@ -10,7 +10,7 @@ class Settings
 	 * Holds the values to be used in the fields callbacks
 	 */
 	private $options;
-	private $Mailchimp;
+	private $Mailchimp=false;
 
 	/**
 	 * Start up
@@ -46,7 +46,9 @@ class Settings
 	{
 		// Set class property
 		$this->options = get_option( 'mailchimp_connector' );
-		$this->Mailchimp = new MailChimp($this->options['api_key']);
+
+		if( isset($this->options['api_key']) )
+			$this->Mailchimp = new MailChimp($this->options['api_key']);
 		?>
 		<div class="wrap">
 			<h1>Mailchimp Connector</h1>
@@ -118,6 +120,9 @@ class Settings
 			__('Audience','mc'), // Title
 			function()
 			{
+				if( !$this->Mailchimp )
+					return;
+
 				$mailchimp_data = $this->Mailchimp->get('/lists');
 				$lists = $mailchimp_data['lists']??[];
 				$dropdown_value = $this->options['list_id']??'';
