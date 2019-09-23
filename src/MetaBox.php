@@ -24,27 +24,8 @@ class MetaBox
 	/**
 	 * Start up
 	 */
-	public function __construct()
+	public function init()
 	{
-		if( !is_admin() )
-			return;
-
-		$this->options = get_option( 'mailchimp_connector' );
-
-		if( !$this->options['api_key'] )
-			return;
-
-		// segments
-		add_action( 'wp_ajax_mc_get_segment', [$this, 'ajaxGetSegments'] );
-		add_action( 'wp_ajax_mc_send_test', [$this, 'sendTest'] );
-
-		add_filter('post_row_actions', function($actions, $post ){
-			if ( isset($this->options['post_type']) && $this->options['post_type'] === $post->post_type && $post->post_status == 'publish' ) {
-				unset( $actions['inline hide-if-no-js'] );
-			}
-			return $actions;
-		}, 10, 2);
-
 		if( !$this->isSelectedPostType() || !isset($this->options['api_key']) || empty($this->options['api_key']) )
 			return;
 
@@ -59,16 +40,49 @@ class MetaBox
 			});
 		}
 
-		// action on saving post
-		add_action( 'save_post', [$this, 'saveMeta'] );
-
 		// action to add meta boxes
 		add_action( 'add_meta_boxes', [$this, 'addMetabox'] );
 
 		// js script
 		add_action( 'admin_footer', [$this, 'adminFooter'] );
 
+		// sidebar
 		add_action( 'post_submitbox_misc_actions', [$this, 'miscActions'] );
+	}
+
+
+	/**
+	 * Constructor
+	 */
+	public function __construct()
+	{
+		if( !is_admin() )
+			return;
+
+		$this->options = get_option( 'mailchimp_connector' );
+
+		if( !$this->options['api_key'] )
+			return;
+
+		// segments ajax action
+		add_action( 'wp_ajax_mc_get_segment', [$this, 'ajaxGetSegments'] );
+
+		//send test ajax action
+		add_action( 'wp_ajax_mc_send_test', [$this, 'sendTest'] );
+
+		//start
+		add_action('init', [$this, 'init']);
+
+		// action on saving post
+		add_action( 'save_post', [$this, 'saveMeta'] );
+
+		// remove quick edit
+		add_filter('post_row_actions', function($actions, $post ){
+			if ( isset($this->options['post_type']) && $this->options['post_type'] === $post->post_type && $post->post_status == 'publish' ) {
+				unset( $actions['inline hide-if-no-js'] );
+			}
+			return $actions;
+		}, 10, 2);
 	}
 
 
