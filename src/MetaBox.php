@@ -135,6 +135,7 @@ class MetaBox
 			jQuery(document).ready(function($) {
 
 				var status = '<?=get_post_status( get_the_ID() )?>';
+				var mc_list_id = '<?=get_post_meta( get_the_ID(), 'mc_list_id', true )?>';
 				var mc_segment_id = '<?=get_post_meta( get_the_ID(), 'mc_segment_id', true )?>';
 				var mc_campaign_id = '<?=get_post_meta( get_the_ID(), 'mc_campaign_id', true )?>';
 				var member = '<?=__('member','mc')?>';
@@ -147,6 +148,30 @@ class MetaBox
 					$('#post-body').find('.button').addClass('button-disabled');
 					$('.edit-post-status, .edit-visibility, .edit-timestamp').remove();
 					$('.send-test').remove();
+
+					var $segments = $('#mc_segments');
+					if( $segments.length ){
+
+						jQuery.post(ajaxurl, {'action':'mc_get_segment', 'list_id':mc_list_id}, function(response) {
+
+							if( response.success && response.segments.length ){
+
+								var html = '<label for="mc_segment_id"><?=__('Segment','mc'); ?></label><select name="mc_segment_id" id="mc_segment_id" disabled>';
+								html += '<option value="0"><?=__('All')?></option>';
+								for(var i=0; i<response.segments.length; i++){
+									var segment = response.segments[i];
+									html += '<option value='+segment.id+' '+(mc_segment_id==segment.id?'selected':'')+'>'+segment.name+' ( '+segment.member_count+' '+(segment.member_count>1?members:member)+' )</option>';
+								}
+								html += '</segment>';
+
+								$segments.html(html);
+							}
+							else{
+
+								$segments.empty();
+							}
+						});
+					}
 				}
 				else{
 
@@ -287,7 +312,7 @@ class MetaBox
 				echo '<label for="mc_list_preview">'.__('Preview', 'mc').'</label>';
 				echo '<input type="text" name="mc_list_preview" maxlength="150" value="'.get_post_meta( get_the_ID(), 'mc_list_preview', true ).'"/>';
 
-				echo '<label for="mc_plain_text">'.__('Plain text', 'mc').'<small style="float: right">'.__('Use [link] to insert permalink', 'mc').'</small></label>';
+				echo '<label for="mc_plain_text">'.__('Plain text', 'mc').'*<small style="float: right">'.__('Use [link] to insert permalink', 'mc').'</small></label>';
 				echo '<textarea name="mc_plain_text" rows="5" required>'.get_post_meta( get_the_ID(), 'mc_plain_text', true ).'</textarea>';
 			},
 			$this->options['post_type']??'post',
