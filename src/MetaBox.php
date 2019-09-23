@@ -31,15 +31,15 @@ class MetaBox
 
 		$this->options = get_option( 'mailchimp_connector' );
 
+		if( !$this->options['api_key'] )
+			return;
+
 		// segments
 		add_action( 'wp_ajax_mc_get_segment', [$this, 'ajaxGetSegments'] );
 		add_action( 'wp_ajax_mc_send_test', [$this, 'sendTest'] );
 
-		// action on saving post
-		add_action( 'save_post', [$this, 'saveMeta'] );
-
 		add_filter('post_row_actions', function($actions, $post ){
-			if ( $this->options['post_type'] === $post->post_type && $post->post_status == 'publish' ) {
+			if ( isset($this->options['post_type']) && $this->options['post_type'] === $post->post_type && $post->post_status == 'publish' ) {
 				unset( $actions['inline hide-if-no-js'] );
 			}
 			return $actions;
@@ -58,6 +58,9 @@ class MetaBox
 				echo '<div class="error notice"><p>'.$e->getMessage().'</p></div>';
 			});
 		}
+
+		// action on saving post
+		add_action( 'save_post', [$this, 'saveMeta'] );
 
 		// action to add meta boxes
 		add_action( 'add_meta_boxes', [$this, 'addMetabox'] );
