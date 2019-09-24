@@ -217,10 +217,10 @@ class MetaBox
 
 							jQuery.post(ajaxurl, {'action':'mc_send_test', 'campaign_id':mc_campaign_id}, function(response) {
 
-								if( response.success)
-									alert('Mail sent to '+response.email);
-								else
+								if( 'message' in response)
 									alert(response.message);
+								else
+									alert('Mail sent to '+response.email);
 
 								$self.removeClass('sending');
 								sending = false;
