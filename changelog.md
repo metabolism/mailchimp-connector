@@ -1,6 +1,9 @@
 CHANGELOG
 ---------
 
+##1.0.3
+Bugfix
+
 ##1.0.2
 Bugfix
 
