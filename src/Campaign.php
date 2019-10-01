@@ -140,7 +140,7 @@ class Campaign
 
 		$response = wp_remote_get($this->link);
 
-		if ( is_array( $response ) )
+		if ( is_array( $response ) && isset($response['response'], $response['response']['code']) && $response['response']['code'] == 200 )
 			return $response['body'];
 
 		return false;
@@ -276,7 +276,7 @@ class Campaign
 	public function getLink() {
 
 		$post_url = get_preview_post_link( $this->id );
-		$home_url = get_home_url(null);
+		$home_url = trim(is_multisite() ? network_home_url() : get_home_url(null), '/');
 
 		if( strpos($post_url, $home_url) === false )
 			$post_url = $home_url.$post_url;
