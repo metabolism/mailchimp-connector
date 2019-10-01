@@ -1,6 +1,9 @@
 CHANGELOG
 ---------
 
+##1.0.5
+Fix multisite url
+
 ##1.0.4
 Fix multisite url
 
