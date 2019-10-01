@@ -276,7 +276,7 @@ class Campaign
 	public function getLink() {
 
 		$post_url = get_preview_post_link( $this->id );
-		$home_url = trim(is_multisite() ? network_home_url() : get_home_url(null), '/');
+		$home_url = trim(network_home_url('', is_ssl()?'https':'http'), '/');
 
 		if( strpos($post_url, $home_url) === false )
 			$post_url = $home_url.$post_url;
